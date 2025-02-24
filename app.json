@@ -3,7 +3,7 @@
     "pages": [
         "pages/index/index",
         "pages/device/device",
-        "pages/excel/excel"
+         "pages/excel/excel"
     ],
     "window": {
         "backgroundTextStyle": "light",

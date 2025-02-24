@@ -44,7 +44,10 @@ Page({
             ecUI.hideLoading()
             if (res.ok) {
                 ecBLE.stopBluetoothDevicesDiscovery()
-                wx.navigateTo({ url: '../excel/excel' })
+                 // 发送指令
+                ecBLE.writeBLECharacteristicValue('<CONNECT>', false)
+                console.log('给模块发送指令：<CONNECT>')
+                wx.navigateTo({ url: `../excel/excel?name=${event.currentTarget.dataset.item.name}` })
             } else {
                 ecUI.showModal(
                     '提示',

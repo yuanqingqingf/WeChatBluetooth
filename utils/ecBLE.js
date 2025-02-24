@@ -140,7 +140,7 @@ const openBluetoothAdapter = async () => {
             ecBluetoothAdapterStateChangeCallback({
                 ok: false,
                 errCode: 30004,
-                errMsg: '请111打开小程序蓝牙开关，点击右上角三个点，然后点击设置',
+                errMsg: '请打开小程序蓝牙开关，点击右上角三个点，然后点击设置',
             })
             return
         }
@@ -209,11 +209,11 @@ const _createBLEConnection = () => {
         wx.createBLEConnection({
             deviceId: ecDeviceId,
             success(res) {
-                log(res)
+                log('_createBLEConnection成功',res)
                 // {"errno":0,"errCode":0,"errMsg":"createBLEConnection:ok"}
                 resolve({ ok: true, errCode: 0, errMsg: '' })
                 // 连接成功了，发送指令
-                ecBLE.writeBLECharacteristicValue(base.formatTime(new Date(),true), true)
+                // ecBLE.writeBLECharacteristicValue(base.formatTime(new Date(),true), true)
             },
             fail(res) {
                 log(res)

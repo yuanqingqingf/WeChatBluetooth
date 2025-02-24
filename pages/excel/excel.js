@@ -104,12 +104,12 @@ Page({
     xlsxpath:'', // 导出地址
     ecLine: {}, 
     WenInfo:{
-      name:'设备名',
+      name:'',
       temperature:'温度',
       unit:',单位',
       warnValue:'报警值',
-      dianliang:'20%',
-      warnStatus:'报警开关', // 报警开关
+      dianliang:'',
+      warnStatus:false, // 报警开关
     },
     xlsxdata:[
       {
@@ -225,11 +225,14 @@ exportExcel(){
     }
   });
 },
+
   /**
    * 生命周期函数--监听页面加载
    */
   onLoad(options) {
     let that = this
+    // 设置默认报警值和报警开关
+    const name = options.name;
     this.setData({
       ecLine:{onInit: function (canvas, width, height, dpr) {
         //初始化echarts元素，绑定到全局变量，方便更改数据
@@ -241,52 +244,83 @@ exportExcel(){
         canvas.setChart(chartLine);
         that.getStudentDes()
       }
-    }})
+    },
+    ['WenInfo.warnValue']: wx.getStorageSync('warnValue') || 37,
+    ['WenInfo.warnStatus']: wx.getStorageSync('warnStatus') || false,
+    ['WenInfo.name']:name
+  })
+    ecBLE.setChineseType(ecBLE.ECBLEChineseTypeGBK)
+   
     // 监听蓝牙变化
-    ecBLE.onBLECharacteristicValueChange((str, strHex) => {
-      // 去除前两位
-     let arr = strHex.split(',')
-     //['0x17', '0x23', '0x03', '0x75']
-     let bbb = arr.slice(6,arr.length-2) 
-      if(bbb[0]==wenDuFaValue){ //温度阈值
-       let temp =  base.hexDeleteTow(bbb[1]) + '.' + base.hexDeleteTow(bbb[2])
-       that.setData({
-        ['WenInfo.warnValue']: temp,
-       })
-      }else if(bbb[0]==danWei){ // 单位
-        let r = ''
-        if(bbb[1] =='0x01'){
-          r = '℃'
-        }else if(bbb[1] =='0x02'){
-          r = '℉'
+    ecBLE.onBLECharacteristicValueChange((curStr, strHex) => {
+      let str = curStr.substr(2)
+      console.log('模块回复:',curStr,'去除前两字符后：',str)
+
+      if(str.startsWith('<PWR')){ // 电量
+        console.log('进入电量计算公式')
+        let match = str.match(/\d+/); //str=<PWR=2819>
+        let text = 0
+        if(match){
+          text =parseInt(-320 + 200*((Number(match[0])/4095)*3))
         }
         that.setData({
-          ['WenInfo.unit']: r,
+          ['WenInfo.dianliang']: text+'%',
          })
-      }else if(bbb[0]==mingCheng){ // 名称
-
-      }else if(bbb[0]==baoJingOff){ // 报警开关
-        let r = ''
-        if(bbb[1] =='0x01'){
-          r = '开'
-        }else if(bbb[1] =='0x02'){
-          r = '关'
-        }
-        that.setData({
-          ['WenInfo.unit']: r,
-         })
-      }else if(bbb[0]==deleteData){
-        // 删除历史数据，啥也不干
+      }else if(str=='<ACK>'){
+        ecBLE.writeBLECharacteristicValue('<START>', false)
+         console.log('给模块发送指令：<START>')
+      }else if(str=='Power on'){ // 表示正常
+        ecBLE.writeBLECharacteristicValue('<INT=0X01>', false)
+        console.log('给模块发送指令：<INT=0X01>设置时间间隔为1分钟')
+        ecBLE.writeBLECharacteristicValue('<RTON>', false)
+        console.log('给模块发送指令：<RTON>')
+       let tempDate= Number(base.formatTime(new Date(),false,true)).toString(16)
+        ecBLE.writeBLECharacteristicValue(`<TIME=0x${tempDate}>`, false)
+        console.log(`给模块发送指令：<TIME=0x${tempDate}>时间指令`)
       }
-      else if(bbb[0]==getData){ // 查看历史数据
+    //   // 去除前两位
+    //  let arr = strHex.split(',')
+    //  //['0x17', '0x23', '0x03', '0x75']
+    //  let bbb = arr.slice(6,arr.length-2) 
+    //   if(bbb[0]==wenDuFaValue){ //温度阈值
+    //    let temp =  base.hexDeleteTow(bbb[1]) + '.' + base.hexDeleteTow(bbb[2])
+    //    that.setData({
+    //     ['WenInfo.warnValue']: temp,
+    //    })
+    //   }else if(bbb[0]==danWei){ // 单位
+    //     let r = ''
+    //     if(bbb[1] =='0x01'){
+    //       r = '℃'
+    //     }else if(bbb[1] =='0x02'){
+    //       r = '℉'
+    //     }
+    //     that.setData({
+    //       ['WenInfo.unit']: r,
+    //      })
+    //   }else if(bbb[0]==mingCheng){ // 名称
 
-      }else{ // 温度-时间（年-月-日-时-分）
-        // 0x24,0x11,0x24,0x15 ,0x23 后两位是温度
-        let temp =  base.hexDeleteTow(bbb[bbb.length-2]) + '.' + base.hexDeleteTow(bbb[length-1])
-       that.setData({
-        ['WenInfo.temperature']: temp,
-       })
-      }
+    //   }else if(bbb[0]==baoJingOff){ // 报警开关
+    //     let r = ''
+    //     if(bbb[1] =='0x01'){
+    //       r = '开'
+    //     }else if(bbb[1] =='0x02'){
+    //       r = '关'
+    //     }
+    //     that.setData({
+    //       ['WenInfo.unit']: r,
+    //      })
+    //   }else if(bbb[0]==deleteData){
+    //     // 删除历史数据，啥也不干
+    //   }
+    //   else if(bbb[0]==getData){ // 查看历史数据
+
+    //   }else{ // 温度-时间（年-月-日-时-分）
+    //     // 0x24,0x11,0x24,0x15 ,0x23 后两位是温度
+    //     let temp =  base.hexDeleteTow(bbb[bbb.length-2]) + '.' + base.hexDeleteTow(bbb[length-1])
+    //    that.setData({
+    //     ['WenInfo.temperature']: temp,
+    //    })
+    //   }
     })
   },
   getStudentDes: function () {
@@ -307,7 +341,8 @@ exportExcel(){
    */
   openNameDialog(){
     this.setData({
-      nameVisible:true
+      nameVisible:true,
+      name:this.data.WenInfo.name
     })
   },
   /**
@@ -315,6 +350,10 @@ exportExcel(){
    */
   openSetDialog(){
     this.setData({
+      setObj:{
+        wenValue: this.data.WenInfo.warnValue,
+        isWarn: this.data.WenInfo.warnStatus,
+      } ,
       setVisible:true
     })
   },
@@ -326,20 +365,29 @@ exportExcel(){
 },
 nameClose(){
   this.setData({
-    name: '',
     nameVisible:false
   })
+  setTimeout(()=>{
+    this.setData({
+      name: '',
+    })
+  },100)
+
 },
 setInfoClose(){
   this.setData({
-    setObj:{
-      wenValue:'',
-      unit:'',
-      isWarn:false,
-    } ,
-    setVisible:false
-
+    setVisible:false,
+    
   })
+  setTimeout(() => {
+    this.setData({
+      setObj:{
+        wenValue:'',
+        unit:'',
+        isWarn:false,
+      } ,
+    })
+  }, 100);
 },
 // 温度值
 WenValueInput(e) {
@@ -361,12 +409,17 @@ offOnChange(e){
 },
 // 设置-弹窗确定
 setInfoConfirm(){
-  let { isWarn,unit,wenValue} = this.data.setObj
-  console.log('执行了么',this.data.setObj)
-  if( !unit || !wenValue){
+  let {isWarn,wenValue} = this.data.setObj
+  if(!wenValue){
     base.toast('请输入完整')
     return
   }
+  this.setData({
+    ['WenInfo.warnValue']: wenValue,
+    ['WenInfo.warnStatus']: isWarn
+  })
+  wx.setStorageSync('warnValue', wenValue)
+  wx.setStorageSync('warnStatus', isWarn)
   this.setInfoClose()
   // 要请求硬件之后再改页面上的值吧？
   wx.showToast({
@@ -382,11 +435,16 @@ nameConfirm(){
     base.toast('请输入完整')
     return
   }
-  let reg = /^[a-zA-Z0-9]{1,10}$/
+  let reg = /^[a-zA-Z0-9_-]{1,10}$/
   if(!reg.test(name)){
-    base.toast('只能输入数字和字母')
+    base.toast('只能输入数字、字母、下划线和中划线')
     return
   }
+  ecBLE.writeBLECharacteristicValue(`<NAME=${name}>`, false)
+  console.log('给模块发送指令：<NAME=${name}>设置设备明证')
+  this.setData({
+    'WenInfo.name':name
+  })
   this.nameClose()
   // 要请求硬件之后再改页面上的值吧？
   wx.showToast({
@@ -427,7 +485,9 @@ openHistory(e){
    * 生命周期函数--监听页面卸载
    */
   onUnload() {
-
+    ecBLE.onBLEConnectionStateChange(() => { })
+    ecBLE.onBLECharacteristicValueChange(() => { })
+    ecBLE.closeBLEConnection()
   },
 
   /**

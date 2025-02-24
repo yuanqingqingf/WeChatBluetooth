@@ -49,7 +49,7 @@ class Base {
 		})
   }
   
- formatTime(date,type) {
+ formatTime(date,type,five) {
     const year = date.getFullYear();
     const month = (date.getMonth() + 1).toString().padStart(2, '0');
     const day = date.getDate().toString().padStart(2, '0');
@@ -61,6 +61,8 @@ class Base {
       let temp = `0x68,0x73,0x63,0x6D,0x66,0x22,${y},0x${month},0x${day},0x${hour},0x${minute}`
       console.log('哈哈',temp)
         return temp
+    }else if(five){
+      return `${(year+'').substring(2)}${month}${day}${hour}${minute}`;
     }else{
       return `${year}-${month}-${day}_${hour}-${minute}-${second}`;
     }
