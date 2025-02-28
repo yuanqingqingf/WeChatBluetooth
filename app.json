@@ -1,9 +1,9 @@
 {
   "entryPagePath": "pages/index/index",
     "pages": [
-        "pages/index/index",
-        "pages/device/device",
-         "pages/excel/excel"
+      "pages/excel/excel",
+      "pages/index/index",
+      "pages/device/device"
     ],
     "window": {
         "backgroundTextStyle": "light",

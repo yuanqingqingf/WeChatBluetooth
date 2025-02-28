@@ -3,7 +3,7 @@
   <view class="navTop">
     <image bind:tap="openSetDialog" src="/img/set.png" mode="aspectFit" class="set-img"></image>
     <view class="temperature-box">
-        <text class="temperature">{{WenInfo.temperature}}℃</text>
+        <text style="color:{{wenColor}}" class="temperature">{{WenInfo.temperature}}℃</text>
     </view>
     <view style="padding:42rpx 15px 0 15rpx;display: flex;justify-content: space-between;">
       <view>
@@ -18,8 +18,8 @@
     <!-- 阴影 -->
     <view class="deviceInfo">
       <view style="display: flex;justify-content: space-between;">
-        <view style="margin-bottom: 25rpx;">
-          <text style="font-size:20px;color: rgb(19, 19, 20);font-weight: 600;">{{WenInfo.name}}</text>
+        <view class="nameCon">
+          <text class="shename">{{WenInfo.name}}</text>
           <image bind:tap="openNameDialog" src="/img/edit.png" mode="aspectFit" class="edit-img"></image>
         </view>
         <view bind:tap="openHistory" data-param="{{true}}"> 
@@ -64,7 +64,7 @@
   </view>
   <view class="order_item flex-h flex-vc">
       <view class="name">温度报警值</view>
-      <input maxlength="{{10}}" class="input_text_sty" type="digit" placeholder-class='input-placeholder' placeholder="请输入温度报警值" bindinput="WenValueInput" value="{{setObj.wenValue}}" />
+      <input maxlength="{{8}}" class="input_text_sty" type="digit" placeholder-class='input-placeholder' placeholder="请输入温度报警值" bindinput="WenValueInput" bindblur="blurWen" value="{{setObj.wenValue}}" />
     </view>
 </dialog>
 <!-- 历史记录弹窗 -->

@@ -90,8 +90,10 @@ Page({
    * 页面的初始数据
    */
   data: {
+    isFirst:true,
     historyShow:false,// 历史记录弹窗
     mainColor:'#65E893',
+    wenColor:'#fff',
     zIndex:99999,
     setVisible:false,//设置弹窗visible
     name:'',
@@ -105,9 +107,9 @@ Page({
     ecLine: {}, 
     WenInfo:{
       name:'',
-      temperature:'温度',
+      temperature:'',
       unit:',单位',
-      warnValue:'报警值',
+      warnValue:'',
       dianliang:'',
       warnStatus:false, // 报警开关
     },
@@ -159,6 +161,24 @@ Page({
         rgtime:"17:35",
         value:37.1
       }]
+  },
+  observers: {
+    'WenInfo.temperature, WenInfo.warnValue': function (temperature, warnValue) {
+      if(WenInfo.warnStatus){
+        this.updateTextStyle(temperature, warnValue);
+      }
+    },
+  },
+  // 更新样式
+  updateTextStyle(temperature, warnValue) {
+    const wenColor = this.getTextStyle(temperature, warnValue);
+    this.setData({ wenColor });
+  },
+
+  // 根据温度值和警告值返回样式对象
+  getTextStyle(temperature, warnValue) {
+    return  parseFloat(temperature) >= parseFloat(warnValue) ? '#f31d1d' : '#fff'
+    
   },
   /**
    * 下载exportExcel
@@ -225,14 +245,25 @@ exportExcel(){
     }
   });
 },
-
+timeInterval(){
+  if(this.data.isFirst){
+    setInterval(() => {
+      ecBLE.writeBLECharacteristicValue('<CONNECT>', false)
+      console.log('给模块发送指令：<CONNECT>')
+      this.setData({
+        isFirst:false
+      })
+    }, 110000);
+  }
+},
+// 历史数据保存
   /**
    * 生命周期函数--监听页面加载
    */
   onLoad(options) {
     let that = this
     // 设置默认报警值和报警开关
-    const name = options.name;
+    // const name = options.name;
     this.setData({
       ecLine:{onInit: function (canvas, width, height, dpr) {
         //初始化echarts元素，绑定到全局变量，方便更改数据
@@ -247,19 +278,24 @@ exportExcel(){
     },
     ['WenInfo.warnValue']: wx.getStorageSync('warnValue') || 37,
     ['WenInfo.warnStatus']: wx.getStorageSync('warnStatus') || false,
-    ['WenInfo.name']:name
+    // ['WenInfo.name']:name
   })
+  if(this.data.WenInfo.warnStatus){
+    this.updateTextStyle(this.data.WenInfo.temperature, this.data.WenInfo.warnValue);
+  }
     ecBLE.setChineseType(ecBLE.ECBLEChineseTypeGBK)
-   
+    /**
+     * 这一组为芯片内部存储: 发送INT；收到INT xxx M，发送<TIME时间>；收到TIME OK，发送<Start>；
+     * 收到ACK之后，发送INT；收到INT xxx M，发送<TIME时间>；收到TIME OK，发送<Start>；收到Power on，发送RTON
+     */
     // 监听蓝牙变化
     ecBLE.onBLECharacteristicValueChange((curStr, strHex) => {
       let str = curStr.substr(2)
       console.log('模块回复:',curStr,'去除前两字符后：',str)
-
       if(str.startsWith('<PWR')){ // 电量
-        console.log('进入电量计算公式')
         let match = str.match(/\d+/); //str=<PWR=2819>
         let text = 0
+        console.log('进入电量计算公式',match[0])
         if(match){
           text =parseInt(-320 + 200*((Number(match[0])/4095)*3))
         }
@@ -267,16 +303,52 @@ exportExcel(){
           ['WenInfo.dianliang']: text+'%',
          })
       }else if(str=='<ACK>'){
-        ecBLE.writeBLECharacteristicValue('<START>', false)
-         console.log('给模块发送指令：<START>')
-      }else if(str=='Power on'){ // 表示正常
-        ecBLE.writeBLECharacteristicValue('<INT=0X01>', false)
-        console.log('给模块发送指令：<INT=0X01>设置时间间隔为1分钟')
-        ecBLE.writeBLECharacteristicValue('<RTON>', false)
-        console.log('给模块发送指令：<RTON>')
-       let tempDate= Number(base.formatTime(new Date(),false,true)).toString(16)
-        ecBLE.writeBLECharacteristicValue(`<TIME=0x${tempDate}>`, false)
-        console.log(`给模块发送指令：<TIME=0x${tempDate}>时间指令`)
+        setTimeout(()=>{
+          if(this.data.isFirst){
+            ecBLE.writeBLECharacteristicValue('<INT=0X01>', false)
+            console.log('给模块发送指令：<INT=0X01>设置时间间隔为1分钟')
+          }
+        },200)
+        wx.showLoading({
+          title: '建立通信连接',
+        })
+      }else if(str.startsWith('INT')){
+        setTimeout(()=>{
+          let tempDate= Number(base.formatTime(new Date(),false,true)).toString(16)
+          ecBLE.writeBLECharacteristicValue(`<TIME=0x${tempDate}>`, false)
+          console.log(`给模块发送指令：<TIME=0x${tempDate}>时间指令`)
+        },200)
+      }else if(str=='TIME OK'){
+        setTimeout(()=>{
+          ecBLE.writeBLECharacteristicValue('<START>', false)
+          console.log('给模块发送指令：<START>')
+        },200) 
+      }else if(str=='Power on'){ // 表示正常（int=>time=>RTON）
+        setTimeout(()=>{
+          ecBLE.writeBLECharacteristicValue('<READ>', false)
+          console.log('给模块发送指令：<READ>')
+        },100) 
+        wx.showLoading({
+          title: '温度加载中',
+        })
+        this.timeInterval()
+      } else if(str.startsWith('Devicee=')){ // 设备名称
+        let temp = str.substr(8)
+        this.setData({
+          ['WenInfo.name']:temp
+        })
+      }else if(str.includes('BAT:') && str.includes('TP:')){ // 电量BAT和温度TP（BAT:2853,TP:18977）
+      let dian = Number(str.match(/T:([^,]+)/)[1]) 
+      let a = Number(str.match(/Bat:([^,]+)/)[1])*2.048/32768
+      let text =parseInt(-320 + 200*((dian)/4095)*3) // 电量
+      let temp =  (1/(1/298.15+(1/3950)*Math.log(a/(2.5-a))))-273.15
+      this.setData({
+        ['WenInfo.temperature']: temp.toFixed(3),
+        ['WenInfo.dianliang']: text+'%',
+       })
+       wx.hideLoading()
+       console.log('计算的温度',temp,'电量',text)
+       // <read>历史温度接受成功后，发送<RTON>。历史温度需要存在本地
       }
     //   // 去除前两位
     //  let arr = strHex.split(',')
@@ -389,11 +461,35 @@ setInfoClose(){
     })
   }, 100);
 },
+ // 校验输入内容
+ validateInput(value) {
+  // 正则表达式：匹配数字和小数点
+  const reg = /^\d*\.?\d*$/;
+  return reg.test(value);
+},
 // 温度值
 WenValueInput(e) {
+  // this.setData({
+  //   ['setObj.wenValue']: e.detail.value,
+  // })
+  const value = e.detail.value; // 获取输入框的值
+  const isValid = this.validateInput(value); // 校验输入内容
+  if (isValid) {
+    // 如果输入合法，更新输入框的值
+    this.setData({
+      ['setObj.wenValue']: value,
+    });
+  } else {
+    // 如果输入不合法，恢复上一次的合法值
+    this.setData({
+      ['setObj.wenValue']: this.data.setObj.wenValue,
+    });
+  }
+},
+blurWen(){
   this.setData({
-    ['setObj.wenValue']: e.detail.value,
-  })
+    ['setObj.wenValue']: parseFloat(this.data.setObj.wenValue) ,
+  });
 },
 // 温度单位
 unitChange(e){
