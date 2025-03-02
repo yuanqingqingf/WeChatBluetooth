@@ -8,5 +8,8 @@
     "van-popup":"/components/vant/popup",
     "van-icon":"/components/vant/icon"
   },
+  "window": {
+    "enablePullDownRefresh": false
+  },
   "navigationBarBackgroundColor":"#65E893"
 }

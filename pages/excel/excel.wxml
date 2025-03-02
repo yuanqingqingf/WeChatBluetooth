@@ -26,16 +26,24 @@
           <text style="font-size:28rpx;color:#606266;">查看历史体温</text>
         </view>
       </view>
-      <view>
-        <text style="font-size: 26rpx;">电池电量：</text>
-        <text style="font-weight: 600;font-size: 38rpx;">{{WenInfo.dianliang}}</text>
+      <view style="margin-top: 10rpx;display: flex;justify-content: space-between;">
+        <view>
+          <text style="font-size: 26rpx;">电池电量：</text>
+          <text style="font-weight: 600;font-size: 38rpx;">{{WenInfo.dianliang}}</text>
+        </view>
+        <!-- <view>
+          <text>清除历史温度</text>
+          <image src="/img/del.png" mode="aspectFit" class="del-img"></image>
+        </view> -->
       </view>
+
     </view>
   </view>
   <view class="icon-box">
     <view>
+    <!-- <text style="margin-right: 30px;" bind:tap="ceshi">测试</text> -->
       <!-- <image src="/img/del.png" mode="aspectFit" class="del-img"></image> -->
-      <image  bind:tap="exportExcel" src="/img/down1.png" mode="aspectFit" class="down-img"></image>
+      <!-- <image  bind:tap="exportExcel" src="/img/down1.png" mode="aspectFit" class="down-img"></image> -->
     </view>
   </view>
   <view class="echart_panel">
@@ -83,6 +91,7 @@
   bind:close="onClickOverlay"
 >
   <view class="hsitoryTop">
+    <image  bind:tap="exportExcel" src="/img/down1.png" mode="aspectFit" class="down-img"></image>
     <text style="font-weight: 500;">历史体温</text>
     <van-icon
       size="22px"
@@ -93,14 +102,19 @@
       data-param="{{false}}"
     />
   </view>
-  <view style="padding: 5rpx 0;display: flex;border: 1px solid #ebeef5;color: #909399;">
-    <view class="tableTop"><text>时间</text></view>
-    <view class="tableTop"><text>温度（℃）</text></view>
-  </view>
-  <scroll-view class="table-container" scroll-y="true">
-    <view wx:for="{{xlsxdata}}" wx:key="{{item.rgtime}}" style="display: flex;border: 1px solid #ebeef5;color: #606266;">
-      <view class="tableTop"><text>{{item.rgtime}}</text></view>
-      <view class="tableTop"><text>{{item.value}}</text></view>
+  <block wx:if="{{xlsxdata.length}}">
+    <view style="padding: 5rpx 0;display: flex;border: 1px solid #ebeef5;color: #909399;">
+      <view class="tableTop"><text>时间</text></view>
+      <view class="tableTop"><text>温度（℃）</text></view>
     </view>
-  </scroll-view>
+    <scroll-view  class="table-container" scroll-y="true">
+      <view wx:for="{{xlsxdata}}" wx:key="index" style="display: flex;border: 1px solid #ebeef5;color: #606266;">
+        <view class="tableTop"><text>{{item.rgtime}}</text></view>
+        <view class="tableTop"><text>{{item.value}}</text></view>
+      </view>
+    </scroll-view>
+  </block>
+  <view wx:else style="margin-top: 40%;text-align: center;color: #5e6d82;">
+    <text>暂无历史温度</text>
+  </view>
 </van-popup>

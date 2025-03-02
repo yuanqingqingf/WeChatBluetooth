@@ -1,8 +1,8 @@
 {
   "entryPagePath": "pages/index/index",
     "pages": [
-      "pages/excel/excel",
       "pages/index/index",
+      "pages/excel/excel",
       "pages/device/device"
     ],
     "window": {

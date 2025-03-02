@@ -90,6 +90,11 @@ Page({
    * 页面的初始数据
    */
   data: {
+    echartsWen:{
+      rgtime:['05:10','06:10','07:10','08:10','09:10','10:10','11:10'],
+      value:[36.5, 37.3, 36, 35.8, 38.3,37.8, 38],
+    },
+    timerId:null,
     isFirst:true,
     historyShow:false,// 历史记录弹窗
     mainColor:'#65E893',
@@ -160,7 +165,7 @@ Page({
       },{
         rgtime:"17:35",
         value:37.1
-      }]
+      }],
   },
   observers: {
     'WenInfo.temperature, WenInfo.warnValue': function (temperature, warnValue) {
@@ -247,20 +252,35 @@ exportExcel(){
 },
 timeInterval(){
   if(this.data.isFirst){
-    setInterval(() => {
+    const timerId = setInterval(() => {
       ecBLE.writeBLECharacteristicValue('<CONNECT>', false)
       console.log('给模块发送指令：<CONNECT>')
       this.setData({
         isFirst:false
       })
     }, 110000);
+    this.setData({
+      timerId: timerId,
+    });
   }
 },
-// 历史数据保存
+// 历史数据保存(只保存最近的300条)
+saveHistory(time,value){
+  let numStr = Number(time)+'' // 16禁止转化为10禁止，2502282054
+  let hour = numStr.substring(6,8) 
+  let minute = numStr.substring(8,10) 
+  let timeX = `${hour}:${minute}` // 20:54
+  let storageList = wx.getStorageSync('historyWen') || []
+  storageList.unshift({rgtime:timeX,value})
+  let effectiveValue =  storageList.slice(0,300)
+  wx.setStorageSync('historyWen',effectiveValue)
+  // console.log('单独',tempDate)
+},
   /**
    * 生命周期函数--监听页面加载
    */
   onLoad(options) {
+    this.saveHistory()
     let that = this
     // 设置默认报警值和报警开关
     // const name = options.name;
@@ -338,8 +358,8 @@ timeInterval(){
           ['WenInfo.name']:temp
         })
       }else if(str.includes('BAT:') && str.includes('TP:')){ // 电量BAT和温度TP（BAT:2853,TP:18977）
-      let dian = Number(str.match(/T:([^,]+)/)[1]) 
-      let a = Number(str.match(/Bat:([^,]+)/)[1])*2.048/32768
+      let dian = Number(str.match(/BAT:([^,]+)/)[1]) 
+      let a = Number(str.match(/TP:([^,]+)/)[1])*2.048/32768
       let text =parseInt(-320 + 200*((dian)/4095)*3) // 电量
       let temp =  (1/(1/298.15+(1/3950)*Math.log(a/(2.5-a))))-273.15
       this.setData({
@@ -349,6 +369,10 @@ timeInterval(){
        wx.hideLoading()
        console.log('计算的温度',temp,'电量',text)
        // <read>历史温度接受成功后，发送<RTON>。历史温度需要存在本地
+      }else if(str=='Rtime off'){
+        setTimeout(()=>{
+          ecBLE.writeBLECharacteristicValue('<READ>', false)
+        },200)
       }
     //   // 去除前两位
     //  let arr = strHex.split(',')
@@ -395,17 +419,23 @@ timeInterval(){
     //   }
     })
   },
+  ceshi(){
+     // 获取当前数据
+     let echartsWen = this.data.echartsWen;
+
+     echartsWen.rgtime.push('12:10'); // 添加一个新的时间
+ 
+     echartsWen.value.push(37.5); // 添加一个新的百分比
+ 
+     // 更新数据
+     this.setData({
+       echartsWen: echartsWen,
+     });
+     this.getStudentDes()
+  },
   getStudentDes: function () {
-    let data = {
-      grades:{
-        exam_time:['05:10','06:10','07:10','08:10','09:10','10:10','11:10'],
-        percentage:[36.5, 37.3, 36, 35.8, 38.3,37.8, 38],
-      }
-    }
-    // 成绩走势
-    var xData = data.grades.exam_time;
-    var data_cur = data.grades.percentage;
-    var option = getOption(xData, data_cur);
+    const {rgtime,value} = this.data.echartsWen
+    var option = getOption(rgtime, value);
     chartLine.setOption(option);
   },
   /**
@@ -551,10 +581,15 @@ nameConfirm(){
 },
 // 历史记录弹窗
 openHistory(e){
+  setTimeout(() => {
+    ecBLE.writeBLECharacteristicValue('<RTOFF>', false)
+  }, 200);
+  console.log('给模块发指令<READ>')
   const param = e.currentTarget.dataset.param; // 获取动态数据
   this.setData({
     historyShow:param
   })
+  // 
 },
   /**
    * 生命周期函数--监听页面初次渲染完成
@@ -584,6 +619,7 @@ openHistory(e){
     ecBLE.onBLEConnectionStateChange(() => { })
     ecBLE.onBLECharacteristicValueChange(() => { })
     ecBLE.closeBLEConnection()
+    clearInterval(this.data.timerId);
   },
 
   /**

@@ -33,7 +33,6 @@ Page({
         ctx.setData({ deviceListData: [] })
         ctx.setData({ deviceListDataShow: [] })
         setTimeout(() => {
-      console.log('setTimeout哈哈')
             wx.stopPullDownRefresh()
             ctx.openBluetoothAdapter()
         }, 500)
