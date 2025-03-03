@@ -49,6 +49,10 @@ Page({
                 ecBLE.writeBLECharacteristicValue('<CONNECT>', false)
                 console.log('给模块发送指令：<CONNECT>')
             } else {
+            //   ecUI.showModal(
+            //     '提示',
+            //     '连接失败,请前往蓝牙列表页面重新建立连接'
+            // )  
                 ecUI.showModal(
                     '提示',
                     '连接失败,errCode=' + res.errCode + ',errMsg=' + res.errMsg

@@ -55,15 +55,20 @@
 .down-img{
   width: 45rpx;
   height: 45rpx;
-  position: absolute;
-  left:20rpx;
+  margin-right: 25px;
+  /* position: absolute;
+  left:20rpx; */
 }
 .del-img{
-  width: 40rpx;
-  height: 40rpx;
+  width: 47rpx;
+  height: 47rpx;
   /* margin-right: 60rpx;
   position: relative;
   top: 6rpx; */
+}
+.del_con{
+  display: flex;
+  align-items: center;
 }
 .order_item {
   height: 84rpx;
