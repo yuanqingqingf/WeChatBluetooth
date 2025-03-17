@@ -69,11 +69,11 @@ function getOption(xData, data_cur, data_his) {
           // color: '#65E893', //折点颜色
           color: (params) => {
             // 根据值动态设置颜色
-            if (params.value > 38) {
-                return '#f56c6c'; // 超过 38 显示红色
-            } else {
+            // if (params.value > 38) {
+            //     return '#f56c6c'; // 超过 38 显示红色
+            // } else {
                 return '#65E893'; // 其他显示绿色
-            }
+            // }
           },
         }
       },
@@ -251,28 +251,48 @@ saveHistory(time,value,isHex){
   let storageList = wx.getStorageSync('historyWen') || []
   storageList.unshift({rgtime:timeX,value})
   let effectiveValue =  storageList.slice(0,30000)
+  console.log('保存历史数据',timeX,'和',value)
   wx.setStorageSync('historyWen',effectiveValue)
   if(!isHex){
     this.getStudentDes()
   }
   // console.log('单独',tempDate)
 },
+hsitorFirstWen(){
+  let storageList = wx.getStorageSync('historyWen') || []
+  if(storageList.length){
+    this.setData({
+      ['WenInfo.temperature']: storageList[0].value,
+    })
+  }else{
+    if(!this.data.WenInfo.temperature){
+      wx.showLoading({
+        title: '请耐心等待1分钟，正在加载温度',
+      })
+    }
+  }
+},
 // 2s未发送历史数据则证明历史数据为空，历史数据为空，则发送RTON指令
 setRton(){
   setTimeout(()=>{
+    wx.hideLoading()
+    console.log('2s未收到历史消息isRead:',this.data.isRead,'和chuHistoryTime：',this.data.chuHistoryTime)
     if(this.data.isRead && !this.data.chuHistoryTime){
       this.getStudentDes() // 历史温度发送结束，更新echarts图
+     this.hsitorFirstWen()
+      console.log('2s后未收到历史消息直接发送RTON指令')
       ecBLE.writeBLECharacteristicValue('<RTON>', false)
       this.setData({
         isRead:false
       })
     }
-  },20000)
+  },2000)
 },
   /**
    * 生命周期函数--监听页面加载
    */
   onLoad(options) {
+    // wx.removeStorageSync('historyWen')
     let that = this
     // 设置默认报警值和报警开关
     // const name = options.name;
@@ -321,14 +341,16 @@ setRton(){
             console.log('给模块发送指令：<INT=0X01>设置时间间隔为1分钟')
           }
         },200)
-        wx.showLoading({
-          title: '建立通信连接',
-        })
+        if(this.data.isFirst){
+          wx.showLoading({
+            title: '建立通信连接',
+          })
+        }
       }else if(str.startsWith('INT')){
         setTimeout(()=>{
           let tempDate= Number(base.formatTime(new Date(),false,true))
           console.log('十进制时间：',tempDate)
-          let sexDate = tempDate.toString(16)
+          let sexDate = tempDate.toString(16).toUpperCase()
           ecBLE.writeBLECharacteristicValue(`<TIME=0x${sexDate}>`, false)
           console.log(`给模块发送指令：<TIME=0x${sexDate}>时间指令`)
         },200)
@@ -358,6 +380,7 @@ setRton(){
           ['WenInfo.name']:temp
         })
       }else if( (str.includes('BAT:') && str.includes('TP:')) || (str.includes('Bat:') && str.includes('Tp:'))){ // 电量BAT和温度TP（BAT:2853,TP:18977）
+       wx.hideLoading()
        let lowStr = str.toLowerCase()
       let dian = Number(lowStr.match(/bat:([^,]+)/)[1]) 
       let tp = Number(lowStr.match(/tp:([^,]+)/)[1])
@@ -377,7 +400,8 @@ setRton(){
           if(time === curTime){
             this.saveHistory(time,temp,true)
           }else{
-           let xian = base.addOneMinute(time)
+           let xian = base.subtractOneMinute(time)
+           console.log('时间计算',time,'和',xian)
            this.saveHistory(xian,temp,true)
             this.setData({
               hsitoryTime:xian,
@@ -394,15 +418,15 @@ setRton(){
          })
          console.log('电量',text)
       }
-       wx.hideLoading()
      
        // <read>历史温度接受成功后，发送<RTON>。历史温度需要存在本地
       } else if(str=='Rtime off'){
         // setTimeout(()=>{
         //   ecBLE.writeBLECharacteristicValue('<READ>', false)
         // },200)
-      }else if(str.startsWith('end of')){
+      }else if(str.startsWith('END of')){
         setTimeout(()=>{
+          this.hsitorFirstWen()
           ecBLE.writeBLECharacteristicValue('<RTON>', false)
           this.setData({
             isRead:false
@@ -410,13 +434,14 @@ setRton(){
           console.log('给模块发送RTON指令')
         },200)
         this.getStudentDes() // 历史温度发送结束，更新echarts图
-      }else if(str.endsWith(',0') && (str.startsWith('0x') || str.startsWith('0X'))){
-        // 硬件发送历史温度之前，会先发送时间，eg：0X7674,0（）
+      }else if(str.includes(',0X') && str.startsWith('0X')){
+        // 硬件发送历史温度之前，会先发送时间，eg：0X9531,0X3D2A（去除中间的,0X）
         if(this.setData.isRead){
-          let numStr = Number(str.split(',')[0])+'' // 16禁止转化为10禁止，2502282054
+          let numStr = str.replace(/,0X/g, '') // 16禁止转化为10禁止，2502282054
+          let shijinzhi = Number(numStr)+''
           this.setData({
-            hsitoryTime:numStr.substr(6),
-            chuHistoryTime:numStr.substr(6), // 保存小时和分钟
+            hsitoryTime:shijinzhi.substr(6,4),
+            chuHistoryTime:shijinzhi.substr(6,4), // 保存小时和分钟
           })
           console.log('read历史温度时间，十进制：',numStr)
         }
@@ -486,19 +511,17 @@ setRton(){
   },
   refreshEchar(){
     // const {rgtime,value} = this.data.echartsWen
-    let regtime = []
+    let rgtimeList = []
     let value=[]
     const wenList = wx.getStorageSync('historyWen') || []
     console.log('所有历史温度:',wenList)
     // 取前7条即可
-    let qian_qi_tiao = wenList.filter((item,index)=>{
-      return index<7
-    })
+    let qian_qi_tiao = wenList.slice(0,30)
     qian_qi_tiao.map(item=>{
-      regtime.push(item.regtime)
-      value.push(item.value)
+      rgtimeList.push(item.rgtime)
+      value.push(parseFloat(item.value) )
     })
-    var option = getOption(rgtime, value);
+    var option = getOption(rgtimeList, value);
     chartLine.setOption(option);
     console.log('echarts更新：',wenList)
   },
@@ -681,6 +704,8 @@ openHistory(e){
    * 生命周期函数--监听页面卸载
    */
   onUnload() {
+    ecBLE.writeBLECharacteristicValue('<START>', false)
+    console.log('给模块发送指令：<START>')
     ecBLE.onBLEConnectionStateChange(() => { })
     ecBLE.onBLECharacteristicValueChange(() => { })
     ecBLE.closeBLEConnection()

@@ -102,7 +102,32 @@ class Base {
     const newTimeStr = `${String(newHours).padStart(2, '0')}${String(newMinutes).padStart(2, '0')}`;
     return newTimeStr;
   }
+  subtractOneMinute(timeStr) {
+    // 截取前两位作为小时，后两位作为分钟
+    const hours = parseInt(timeStr.substring(0, 2), 10); // 前两位是小时
+    const minutes = parseInt(timeStr.substring(2, 4), 10); // 后两位是分钟
+  
+    // 减 1 分钟
+    let newMinutes = minutes - 1;
+    let newHours = hours;
+  
+    // 如果分钟小于 0，借位到小时
+    if (newMinutes < 0) {
+        newMinutes = 59; // 分钟设置为 59
+        newHours -= 1; // 小时减 1
+    }
+  
+    // 如果小时小于 0，归零（假设是 24 小时制）
+    if (newHours < 0) {
+        newHours = 23; // 小时设置为 23
+    }
+  
+    // 将小时和分钟格式化为 4 位字符串
+    const newTimeStr = `${String(newHours).padStart(2, '0')}${String(newMinutes).padStart(2, '0')}`;
+    return newTimeStr;
+  }
 }
+
 export {
 	Base
 }
