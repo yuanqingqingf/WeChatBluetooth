@@ -15,6 +15,7 @@ const mingCheng = '0x72'//设备名称
 const baoJingOff='0x73' // 是否开启报警开关
 const deleteData='0x75' // 删除历史数据
 const getData='0x76'//查询历史数据
+const timeGap = 500
 // 35 - 45   
 let chartLine;
 function getOption(xData, data_cur, data_his) {
@@ -340,7 +341,7 @@ setRton(){
             ecBLE.writeBLECharacteristicValue('<INT=0X01>', false)
             console.log('给模块发送指令：<INT=0X01>设置时间间隔为1分钟')
           }
-        },200)
+        },2000)
         if(this.data.isFirst){
           wx.showLoading({
             title: '建立通信连接',
@@ -353,12 +354,12 @@ setRton(){
           let sexDate = tempDate.toString(16).toUpperCase()
           ecBLE.writeBLECharacteristicValue(`<TIME=0x${sexDate}>`, false)
           console.log(`给模块发送指令：<TIME=0x${sexDate}>时间指令`)
-        },200)
+        },timeGap)
       }else if(str=='TIME OK'){
         setTimeout(()=>{
           ecBLE.writeBLECharacteristicValue('<START>', false)
           console.log('给模块发送指令：<START>')
-        },200) 
+        },timeGap) 
       }else if(str=='Power on'){ // 表示正常（int=>time=>RTON）
         setTimeout(()=>{
           this.setData({
@@ -377,7 +378,7 @@ setRton(){
       } else if(str.startsWith('Devicee=')){ // 设备名称
         let temp = str.substr(8)
         this.setData({
-          ['WenInfo.name']:temp
+          ['WenInfo.name']:temp,
         })
       }else if( (str.includes('BAT:') && str.includes('TP:')) || (str.includes('Bat:') && str.includes('Tp:'))){ // 电量BAT和温度TP（BAT:2853,TP:18977）
        wx.hideLoading()
@@ -423,7 +424,7 @@ setRton(){
       } else if(str=='Rtime off'){
         // setTimeout(()=>{
         //   ecBLE.writeBLECharacteristicValue('<READ>', false)
-        // },200)
+        // },timeGap)
       }else if(str.startsWith('END of')){
         setTimeout(()=>{
           this.hsitorFirstWen()
@@ -432,7 +433,7 @@ setRton(){
             isRead:false
           })
           console.log('给模块发送RTON指令')
-        },200)
+        },timeGap)
         this.getStudentDes() // 历史温度发送结束，更新echarts图
       }else if(str.includes(',0X') && str.startsWith('0X')){
         // 硬件发送历史温度之前，会先发送时间，eg：0X9531,0X3D2A（去除中间的,0X）
@@ -654,7 +655,7 @@ nameConfirm(){
     return
   }
   ecBLE.writeBLECharacteristicValue(`<NAME=${name}>`, false)
-  console.log('给模块发送指令：<NAME=${name}>设置设备明证')
+  console.log('给模块发送指令：<NAME=${name}>设置设备名称')
   this.setData({
     'WenInfo.name':name
   })
@@ -670,14 +671,14 @@ nameConfirm(){
 openHistory(e){
   // setTimeout(() => {
   //   ecBLE.writeBLECharacteristicValue('<RTOFF>', false)
-  // }, 200);
+  // }, timeGap);
   // console.log('给模块发指令<READ>')
   const param = e.currentTarget.dataset.param; // 获取动态数据
   this.setData({
     historyShow:param,
     xlsxdata: wx.getStorageSync('historyWen') || []
   })
-  console.log('第三方',wx.getStorageSync('historyWen') || [])
+  console.log('历史信息：',wx.getStorageSync('historyWen') || [])
 },
   /**
    * 生命周期函数--监听页面初次渲染完成
@@ -710,6 +711,7 @@ openHistory(e){
     ecBLE.onBLECharacteristicValueChange(() => { })
     ecBLE.closeBLEConnection()
     clearInterval(this.data.timerId);
+    wx.hideLoading()
   },
 
   /**
